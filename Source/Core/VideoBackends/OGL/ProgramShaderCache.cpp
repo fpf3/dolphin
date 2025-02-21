@@ -7,8 +7,10 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <optional>
 
 #include <fmt/format.h>
+#include <iostream>
 
 #include "Common/Align.h"
 #include "Common/Assert.h"
@@ -21,6 +23,7 @@
 
 #include "Core/ConfigManager.h"
 #include "Core/System.h"
+#include "InputCommon/ImageOperations.h"
 
 #include "VideoBackends/OGL/OGLConfig.h"
 #include "VideoBackends/OGL/OGLGfx.h"
@@ -29,6 +32,7 @@
 #include "VideoBackends/OGL/OGLVertexManager.h"
 
 #include "VideoCommon/AsyncShaderCompiler.h"
+#include "VideoCommon/FramebufferManager.h"
 #include "VideoCommon/GeometryShaderManager.h"
 #include "VideoCommon/PixelShaderManager.h"
 #include "VideoCommon/Statistics.h"
@@ -36,6 +40,7 @@
 #include "VideoCommon/VertexShaderManager.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
+#include "VideoCommon/AbstractFramebuffer.h"
 
 namespace OGL
 {
@@ -88,6 +93,81 @@ static std::string GetGLSLVersionString()
 
 void SHADER::SetProgramVariables()
 {
+  GLenum err;
+  glGenBuffers(1, &ssbo_id);
+  if ((err = glGetError()) != GL_NO_ERROR)
+  {
+      std::cout << "glGenBuffers error: " << err << std::endl;
+  }
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo_id); // bind buffer
+  if ((err = glGetError()) != GL_NO_ERROR)
+  {
+      std::cout << "glBindBuffer error: " << err << std::endl;
+  }
+  AbstractFramebuffer* fb;
+  if (g_framebuffer_manager != nullptr)
+      fb = g_framebuffer_manager->GetEFBFramebuffer();
+  else
+  {
+      fb = nullptr;
+      std::cout << "manager is null" << std::endl;
+  }
+
+
+  size_t num_px;
+  if (fb != nullptr)
+  {
+      num_px = fb->GetWidth() * fb->GetHeight();
+  }
+  else 
+  {
+      num_px = 0;
+  }
+
+  std::cout << "I see a frame with " << num_px << "px" << std::endl;
+
+  if (num_px)
+  {
+      glNamedBufferData(ssbo_id, 
+              sizeof(float)*4*num_px,
+              nullptr,
+              GL_STATIC_COPY);
+      if ((err = glGetError()) != GL_NO_ERROR)
+      {
+          std::cout << "glBufferData error: " << err << std::endl;
+      }
+      else
+          std::cout << "glBufferData" << std::endl;
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbo_id);
+      if ((err = glGetError()) != GL_NO_ERROR)
+      {
+          std::cout << "glBindBufferBase error: " << err << std::endl;
+      }
+      else
+          std::cout << "glBindBufferBase" << std::endl;
+
+      if (auto img = InputCommon::LoadImage(File::GetSysDirectory() + std::string("/slot-mask-aligned.png")))
+      {
+          glCreateTextures(GL_TEXTURE_2D, 1, &crt_texture);
+          //glBindTexture(GL_TEXTURE_2D, crt_texture);
+          //glBindTextureUnit(4, crt_texture);
+          glBindImageTexture(4, crt_texture, 0, false, 0, GL_READ_ONLY, GL_RGBA32F);
+          //glTexImage2D(GL_TEXTURE_2D, 
+          //        0, GL_RGBA, img->width, img->height, 
+          //        0, GL_RGBA, GL_UNSIGNED_BYTE, img->pixels.data());
+          glTexImage2DMultisample(GL_TEXTURE_2D,
+                  img->width*img->height,
+                  GL_RGBA32F,
+                  img->width,
+                  img->height,
+                  true);
+      }
+      else
+      {
+        std::cout << "Failed to load image." << std::endl;
+      }
+  }
+
   if (g_ActiveConfig.backend_info.bSupportsBindingLayout)
     return;
 
@@ -119,7 +199,7 @@ void SHADER::SetProgramVariables()
     if (loc >= 0)
       glUniform1i(loc, a);
   }
-
+  
   // Restore previous program binding.
   glUseProgram(CurrentProgram);
 }
@@ -188,6 +268,11 @@ void SHADER::DestroyShaders()
   {
     glDeleteShader(psid);
     psid = 0;
+  }
+  if (ssbo_id)
+  {
+      glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // bind buffer
+      ssbo_id = 0;
   }
 }
 

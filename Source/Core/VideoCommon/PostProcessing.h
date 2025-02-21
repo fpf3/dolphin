@@ -127,6 +127,8 @@ protected:
                          const MathUtil::Rectangle<int>& wnd, u8* buffer, bool user_post_process,
                          bool intermediary_buffer);
 
+  std::uint32_t frame_counter;
+
   // Timer for determining our time value
   Common::Timer m_timer;
 

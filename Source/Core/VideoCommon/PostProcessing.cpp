@@ -371,6 +371,7 @@ void PostProcessingConfiguration::SetOptionb(const std::string& option, bool val
 }
 
 PostProcessing::PostProcessing()
+    : frame_counter(0)
 {
   m_timer.Start();
 }
@@ -634,6 +635,7 @@ std::string PostProcessing::GetUniformBufferHeader(bool user_post_process) const
   ss << "  int hdr_output;\n";
   ss << "  float hdr_paper_white_nits;\n";
   ss << "  float hdr_sdr_white_nits;\n";
+  ss << "  uint frame_id;\n";
 
   if (user_post_process)
   {
@@ -853,6 +855,7 @@ struct BuiltinUniforms
   s32 hdr_output;
   float hdr_paper_white_nits;
   float hdr_sdr_white_nits;
+  u32 frame_id;
 };
 
 size_t PostProcessing::CalculateUniformsSize(bool user_post_process) const
@@ -909,6 +912,8 @@ void PostProcessing::FillUniformBuffer(const MathUtil::Rectangle<int>& src,
   builtin_uniforms.hdr_paper_white_nits = g_ActiveConfig.color_correction.fHDRPaperWhiteNits;
   // A value of 1 1 1 usually matches 80 nits in HDR
   builtin_uniforms.hdr_sdr_white_nits = 80.f;
+
+  builtin_uniforms.frame_id = static_cast<u32>(++frame_counter);
 
   std::memcpy(buffer, &builtin_uniforms, sizeof(builtin_uniforms));
   buffer += sizeof(builtin_uniforms);

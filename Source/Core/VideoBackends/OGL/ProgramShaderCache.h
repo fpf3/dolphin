@@ -34,6 +34,8 @@ struct SHADER
   GLuint gsid = 0;
   GLuint psid = 0;
   GLuint glprogid = 0;
+  GLuint ssbo_id = 0;
+  GLuint crt_texture = 0;
 
   void SetProgramVariables();
   void SetProgramBindings(bool is_compute);
