@@ -104,16 +104,21 @@ void SHADER::SetProgramVariables()
   {
       std::cout << "glBindBuffer error: " << err << std::endl;
   }
-  AbstractFramebuffer* fb;
+  //AbstractFramebuffer* fb;
+  MathUtil::Rectangle<int> fb;
   if (g_framebuffer_manager != nullptr)
-      fb = g_framebuffer_manager->GetEFBFramebuffer();
+  {
+      //fb = g_framebuffer_manager->GetEFBFramebuffer();
+      fb = g_gfx->GetCurrentFramebuffer()->GetRect();
+  }
   else
   {
-      fb = nullptr;
+      //fb = nullptr;
       std::cout << "manager is null" << std::endl;
   }
 
 
+  /*
   size_t num_px;
   if (fb != nullptr)
   {
@@ -123,13 +128,15 @@ void SHADER::SetProgramVariables()
   {
       num_px = 0;
   }
+  */
+  size_t num_px = fb.GetWidth() * fb.GetHeight();
 
   std::cout << "I see a frame with " << num_px << "px" << std::endl;
 
   if (num_px)
   {
       glNamedBufferData(ssbo_id, 
-              sizeof(float)*4*num_px,
+              sizeof(GLfloat)*4*num_px,
               nullptr,
               GL_STATIC_COPY);
       if ((err = glGetError()) != GL_NO_ERROR)

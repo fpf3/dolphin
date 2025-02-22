@@ -66,6 +66,11 @@ GUIName = Scanline Antialiasing
 OptionName = enable_antialias
 DefaultValue = false
 
+[OptionBool]
+GUIName = Debug RNG
+OptionName = debug_rng
+DefaultValue = false
+
 [/configuration]
 */
 
@@ -74,7 +79,7 @@ SSBO_BINDING(3) coherent buffer decay
     float4 decaybuf[];
 };
 
-IMAGE_BINDING(rgba32f, 4) uniform shadow_mask;
+//IMAGE_BINDING(rgba32f, 4) uniform shadow_mask;
 
 float rand(float2 xy)
 {
@@ -87,15 +92,15 @@ float rand(float2 xy)
 
 float4 scanline_sample(float2 uv)
 {
-  int wincoordx = int(floor(GetWindowResolution().x * uv.x));
-  int wincoordy = int(floor(GetWindowResolution().y * uv.y));
+  int wincoordx = int(floor(GetTargetResolution().x * uv.x));
+  int wincoordy = int(floor(GetTargetResolution().y * uv.y));
 
-  int bufcoordx = int(floor(GetTargetResolution().x * uv.x));
-  int bufcoordy = int(floor(GetTargetResolution().y * uv.y));
-  int decayindex = bufcoordx + bufcoordy * int(GetTargetResolution().x);
+  int bufcoordx = int(floor(GetResolution().x * uv.x));
+  int bufcoordy = int(floor(GetResolution().y * uv.y));
+  int decayindex = bufcoordx + (bufcoordy * int(GetResolution().x));
 
-  float2 buffered_uv = float2((float(bufcoordx) * GetInvTargetResolution().x), (float(bufcoordy) * GetInvTargetResolution().y));
-  float2 windowed_uv = float2((float(wincoordx) * GetInvWindowResolution().x), (float(wincoordy) * GetInvWindowResolution().y));
+  float2 buffered_uv = float2((float(bufcoordx) * GetInvResolution().x), (float(bufcoordy) * GetInvResolution().y));
+  float2 windowed_uv = float2((float(wincoordx) * GetInvTargetResolution().x), (float(wincoordy) * GetInvTargetResolution().y));
 
 	float4 c0 = SampleLocation(buffered_uv);
   float4 cx, cy;
@@ -125,16 +130,27 @@ float4 scanline_sample(float2 uv)
       for (int i = 0; i < int(round(alias_samples)); i++)
       {
           float2 pq = windowed_uv;
-          pq.y += rand(uv * i) * GetInvWindowResolution().y;
+          pq.x += rand(uv * i) * GetInvTargetResolution().x;
+          pq.y += rand(2 * uv * i) * GetInvTargetResolution().y;
          
-          bufcoordx = int(floor(GetTargetResolution().x * pq.x));
-          bufcoordy = int(floor(GetTargetResolution().y * pq.y));
-          c0 += decaybuf[bufcoordx + bufcoordy * int(GetTargetResolution().x)];
+          bufcoordx = int(floor(GetResolution().x * pq.x));
+          bufcoordy = int(floor(GetResolution().y * pq.y));
+          c0 += decaybuf[bufcoordx + bufcoordy * int(GetResolution().x)];
       }
 
-      c0 /= round(alias_samples);
+      c0 /= round(alias_samples) + 1;
 
-      c0 = texture(shadow_mask, float3(uv, 1.0));
+      //c0 = texture(shadow_mask, float3(uv, 1.0));
+  }
+  
+  if (bool(debug_rng))
+  {
+      c0.x = rand(windowed_uv * 2);
+      c0.y = rand(windowed_uv);
+      //c0.x = 100 * (windowed_uv.x - buffered_uv.x); 
+      //c0.y = 100 * (windowed_uv.y - buffered_uv.y); 
+      //c0.z = float(decayindex) * GetInvResolution().x * GetInvResolution().y;
+      //c0.z = GetResolution().x / 1024.;
   }
 
 	// output

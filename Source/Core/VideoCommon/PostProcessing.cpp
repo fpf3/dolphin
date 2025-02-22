@@ -7,6 +7,8 @@
 #include <string>
 #include <string_view>
 
+#include <iostream>
+
 #include <fmt/format.h>
 
 #include "Common/Assert.h"
@@ -873,6 +875,10 @@ void PostProcessing::FillUniformBuffer(const MathUtil::Rectangle<int>& src,
 {
   const float rcp_src_width = 1.0f / src_tex->GetWidth();
   const float rcp_src_height = 1.0f / src_tex->GetHeight();
+
+  std::cout << "uniform source: " << src_tex->GetHeight() * src_tex->GetWidth() << std::endl;
+  std::cout << "uniform target: " << dst.GetHeight() * dst.GetWidth() << std::endl;
+  std::cout << "uniform window: " << wnd.GetHeight() * wnd.GetWidth() << std::endl;
 
   BuiltinUniforms builtin_uniforms;
   builtin_uniforms.source_resolution = {static_cast<float>(src_tex->GetWidth()),
